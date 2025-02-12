@@ -1,0 +1,9 @@
+dataset:
+  base_dir: /home/zrgy/workspace/sports/datasets/tennis_land
+  positive_dirs:
+    - bounce_event_frames
+    - corrected_positives
+  negative_dirs:
+    - rand_neg_bounces
+    - neg_bounces
+  

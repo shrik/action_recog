@@ -1,0 +1,6 @@
+rockchip
+data
+**/__pycache__
+models
+*.log
+.vscode
