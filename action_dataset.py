@@ -6,7 +6,9 @@ from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 import numpy as np
 import torch
-
+import imgaug.augmenters as iaa
+import random
+import torchvision
 
 def subdirs(dirs):
     ret = []
@@ -29,6 +31,7 @@ def load_frames(itemdirs, num_frames=5):
         for jpg_file in jpg_files:
             frame_path = os.path.join(itemdir, jpg_file)
             frame = cv2.imread(frame_path)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # 转换为rgb, 因为rknn输入的数据是RGB格式
             frames.append(frame)
         if len(frames) == 11:
             num = (11-num_frames)//2
@@ -44,9 +47,9 @@ def to_gif_filename(filename):
     return filename.replace(bn, gifname)
 
 def load_data(config, num_frames=5):
-    base_dir = config['dataset']['base_dir']
-    positive_dirs = config['dataset']['positive_dirs']
-    negative_dirs = config['dataset']['negative_dirs']
+    base_dir = config['base_dir']
+    positive_dirs = config['positive_dirs']
+    negative_dirs = config['negative_dirs']
     positive_dirs = [os.path.join(base_dir, dir) for dir in positive_dirs]
     negative_dirs = [os.path.join(base_dir, dir) for dir in negative_dirs]
     pos_subdirs = subdirs(positive_dirs)
@@ -64,41 +67,42 @@ def load_data(config, num_frames=5):
     return data, labels, filenames
     
 
-def load_dataset(configfile, train_size=0.8, num_frames=5):
-    config = load_config(configfile)
+def load_dataset(configfile, tag="train", train_size=0.8, num_frames=5):
+    config = load_config(configfile)['dataset'][tag]
     data, labels, filenames = load_data(config, num_frames)
     data, labels = shuffle(data, labels, random_state=42)   
     train_data, test_data, train_labels, test_labels = train_test_split(data, labels, test_size=1-train_size, random_state=42)
     return train_data, train_labels, test_data, test_labels
 
 
-def load_predict_dataset(configfile):
-    config = load_config(configfile)
+def load_predict_dataset(configfile, tag="test"):
+    config = load_config(configfile)['dataset'][tag]
     data, labels, filenames = load_data(config)
     return data, labels, filenames
 
+
 def augment_frames(frames):
-    # Randomly apply augmentations
-    if np.random.random() < 0.5:
-        # Random horizontal flip
-        frames = [cv2.flip(frame, 1) for frame in frames]
+    # Convert frames to torch tensors
+    frames = [torch.from_numpy(frame).permute(2, 0, 1) for frame in frames]
+    frames = torch.stack(frames)
+
+    # Create transforms pipeline
+    transforms = torch.nn.Sequential(
+        torchvision.transforms.RandomHorizontalFlip(p=0.5),
+        torchvision.transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        torchvision.transforms.RandomApply([
+            torchvision.transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0))
+        ], p=0.2),
+        
+    )
+
+    # Apply same transforms to all frames
+    frames = transforms(frames)
     
-    if np.random.random() < 0.3:
-        # Random brightness adjustment
-        alpha = 0.8 + np.random.random() * 0.4  # 0.8 to 1.2
-        frames = [cv2.convertScaleAbs(frame, alpha=alpha) for frame in frames]
-        
-    if np.random.random() < 0.3:
-        # Random contrast adjustment
-        beta = -20 + np.random.random() * 40  # -20 to 20
-        frames = [cv2.convertScaleAbs(frame, beta=beta) for frame in frames]
-        
-    
-    if np.random.random() < 0.2:
-        # Random Gaussian blur
-        kernel_size = np.random.choice([3, 5])
-        frames = [cv2.GaussianBlur(frame, (kernel_size, kernel_size), 0) for frame in frames]
-        
+    # Convert back to numpy arrays
+    frames = frames.numpy()
+    frames = np.split(frames, len(frames), axis=0)
+    frames = [frame.squeeze(0).transpose(1, 2, 0) for frame in frames]
     return frames
 
 # Custom dataset class for handling 5-frame sequences
@@ -110,9 +114,20 @@ class ActionDataset(Dataset):
         self.crop_size = crop_size
         self.augment = augment
         self.output_image = output_image
-    def __crop_frame(self, frame, size):
-        center_x = frame.shape[1] // 2
-        center_y = frame.shape[0] // 2
+    def __crop_frame(self, frame, size, random_shift=None):
+        shift_x = 0
+        shift_y = 0
+        if random_shift:
+            shift_x = random.randint(-random_shift, random_shift)
+            shift_y = random.randint(-random_shift, random_shift)
+        center_x = frame.shape[1] // 2 + shift_x
+        center_y = frame.shape[0] // 2 + shift_y
+        # 防止越界
+        center_x = max(center_x, size//2)
+        center_x = min(center_x, frame.shape[1] - size//2)
+        center_y = max(center_y, size//2)
+        center_y = min(center_y, frame.shape[0] - size//2) 
+
         start_x = center_x - size // 2
         start_y = center_y - size // 2
         return frame[start_y:start_y+size, start_x:start_x+size]
@@ -121,7 +136,10 @@ class ActionDataset(Dataset):
         ret = []
         for frame in data:
             if self.crop_size is not None:
-                ret.append(self.__crop_frame(frame, self.crop_size))
+                if self.augment:
+                    ret.append(self.__crop_frame(frame, self.crop_size, random_shift=35))
+                else:
+                    ret.append(self.__crop_frame(frame, self.crop_size))
             else:
                 ret.append(frame)
         if self.augment:

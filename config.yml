@@ -1,9 +1,42 @@
 dataset:
-  base_dir: /home/zrgy/workspace/sports/datasets/tennis_land
-  positive_dirs:
-    - bounce_event_frames
-    - corrected_positives
-  negative_dirs:
-    - rand_neg_bounces
-    - neg_bounces
-  
+  train:
+    base_dir: /home/zrgy/workspace/sports/datasets/tennis_land
+    positive_dirs:
+      - bounce_event_frames
+      - corrected_positives
+      - 2025_left_pos
+    negative_dirs:
+      - rand_neg_bounces
+      - neg_bounces
+      - 2025_left_neg
+  test:
+    base_dir: /home/zrgy/workspace/sports/datasets/tennis_land
+    positive_dirs:
+      - 2025_left_pos
+    negative_dirs:
+      - 2025_left_neg
+
+# dataset:
+#   train:
+#     base_dir: /home/zrgy/workspace/sports/datasets/tennis_land
+#     positive_dirs:
+#       - 2025_left_pos
+#     negative_dirs:
+#       - 2025_left_neg
+#   eval:
+#     base_dir: /home/zrgy/workspace/sports/datasets/tennis_land
+#     positive_dirs:
+#       - bounce_event_frames
+#       - corrected_positives
+#     negative_dirs:
+#       - rand_neg_bounces
+#       - neg_bounces
+
+
+
+# dataset:
+#   base_dir: /home/zrgy/workspace/sports/datasets/tennis_land
+#   positive_dirs:
+#     - 2025_left_pos
+#   negative_dirs:
+#     - 2025_left_neg

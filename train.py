@@ -8,7 +8,7 @@ from action_dataset import load_dataset, ActionDataset
 NUM_FRAMES = 5
 
 # Training function
-def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs, device):
+def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs, device, save_dir):
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
@@ -33,7 +33,7 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
         accuracy = 100. * correct / total
         print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {accuracy:.2f}%')
         evaluate_model(model, test_loader, device)
-        torch.save(model, f'models/model_{epoch}.pth')
+        torch.save(model, f'{save_dir}/model_{epoch}.pth')
     return model
 
 def evaluate_model(model, test_loader, device):
@@ -75,16 +75,18 @@ if __name__ == "__main__":
     CROP_SIZE = 224
     device = torch.device("cuda")
     # model = ActionModel(num_frames=NUM_FRAMES).to(device)
-    model = torch.load(f'models/model_49.pth').to(device)
+    model = torch.load(f'models/mbv3_total/model_49.pth').to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     
     configfile = 'config.yml'
-    train_data, train_labels, test_data, test_labels = load_dataset(configfile, num_frames=NUM_FRAMES)
+    train_data, train_labels, test_data, test_labels = load_dataset(configfile, num_frames=NUM_FRAMES, tag="train")
 
-    train_loader = DataLoader(ActionDataset(train_data, train_labels, crop_size=CROP_SIZE), batch_size=16, shuffle=True)
+    train_loader = DataLoader(ActionDataset(train_data, train_labels, crop_size=CROP_SIZE, augment=True), batch_size=16, shuffle=True)
     test_loader = DataLoader(ActionDataset(test_data, test_labels, crop_size=CROP_SIZE), batch_size=16, shuffle=False)
     
-    model = train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=50, device=device)
+    model = train_model(model, train_loader, test_loader, criterion, optimizer, 
+                        save_dir='models/mbv3_total',
+                        num_epochs=50, device=device)
     # evaluate_model(model, test_loader, device)
 

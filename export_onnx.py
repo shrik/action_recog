@@ -46,7 +46,7 @@ def predict_model(model, predict_loader, device):
 if __name__ == "__main__":
     device = torch.device("cuda")
     # model = ActionModel(num_frames=5).to(device)
-    model = torch.load(f'models/model_49.pth').to(device)
+    model = torch.load(f'models/mbv3_total/model_49.pth').to(device)
     # criterion = nn.CrossEntropyLoss()
     # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     configfile = 'config.yml'
     data, labels, filenames = load_predict_dataset(configfile)
 
-    predict_loader = DataLoader(ActionDataset(data, labels, filenames, crop_size=224, augment=False), batch_size=32, shuffle=False)
+    # predict_loader = DataLoader(ActionDataset(data, labels, filenames, crop_size=224, augment=False), batch_size=32, shuffle=False)
     # print(f"Number of batches: {len(predict_loader)}, Number of samples: {len(data)}")
     
     
@@ -69,12 +69,12 @@ if __name__ == "__main__":
     # import pdb; pdb.set_trace()
     torch.onnx.export(model, 
                       (torch.randn(1, 3, 224*5, 224).to(device).float()), 
-                      "model_1120_224.onnx", 
+                      "models/mbv3_1120_224.onnx", 
                       input_names=['input'],
                       output_names=['output'],
                       opset_version=11,
                       verbose=True)
     
-    predict_model(model, predict_loader, device)
+    # predict_model(model, predict_loader, device)
 
 

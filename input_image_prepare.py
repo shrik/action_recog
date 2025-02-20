@@ -1,11 +1,13 @@
+# 将数据转成单张图片输出
+
 
 import torch
 from torch.utils.data import DataLoader
 from action_dataset import load_predict_dataset, ActionDataset
 import cv2
 
-def prepare_input_image(configfile):
-    data, labels, filenames = load_predict_dataset(configfile)
+def prepare_input_image(configfile, tag="train"):
+    data, labels, filenames = load_predict_dataset(configfile, tag=tag)
 
     data_loader = DataLoader(ActionDataset(data, labels, filenames,
                                            crop_size=224, augment=False,
@@ -19,4 +21,4 @@ def prepare_input_image(configfile):
 if __name__ == "__main__":
     configfile = 'config.yml'
     dirname = "data/single"
-    predict_loader = prepare_input_image(configfile)
+    prepare_input_image(configfile, tag="test")
